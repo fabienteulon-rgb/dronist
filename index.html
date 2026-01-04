@@ -141,11 +141,40 @@
                 const canvas = document.createElement('canvas');
                 canvas.width = 512; canvas.height = 512;
                 const ctx = canvas.getContext('2d');
+                
+                // Fond asphalte sombre
                 ctx.fillStyle = '#1e1e24'; ctx.fillRect(0, 0, 512, 512);
-                ctx.fillStyle = '#0a0a0c'; ctx.fillRect(512-40, 0, 40, 512); ctx.fillRect(0, 512-40, 512, 40);
+                
+                // Trottoirs (sur les bords de la cellule de 100x100m simulée ici sur 512px)
+                // On dessine des bandes grises claires
+                ctx.fillStyle = '#44444a';
+                ctx.fillRect(472, 0, 40, 512); // Trottoir vertical
+                ctx.fillRect(0, 472, 512, 40); // Trottoir horizontal
+
+                // Lignes blanches pointillées au milieu des routes
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 4;
+                ctx.setLineDash([20, 20]);
+                
+                // Ligne verticale (milieu de la route imaginaire entre les bâtiments)
+                ctx.beginPath();
+                ctx.moveTo(492, 0); ctx.lineTo(492, 512);
+                ctx.stroke();
+
+                // Ligne horizontale
+                ctx.beginPath();
+                ctx.moveTo(0, 492); ctx.lineTo(512, 492);
+                ctx.stroke();
+                
+                // Bordures de trottoirs
+                ctx.setLineDash([]);
+                ctx.fillStyle = '#55555f';
+                ctx.fillRect(468, 0, 4, 512);
+                ctx.fillRect(0, 468, 512, 4);
+
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-                tex.repeat.set(20, 20);
+                tex.repeat.set(20, 20); // Répétition sur toute la carte
                 return tex;
             },
             building: () => {
@@ -227,7 +256,8 @@
                     const h = 30 + Math.random() * 80;
                     const w = 15 + Math.random() * 10;
                     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ map: bTex, color: 0x888888 }));
-                    b.position.set(x + 15, h/2, z + 15);
+                    // On place les bâtiments en laissant de la place pour les routes (trottoirs + asphalte)
+                    b.position.set(x + 25, h/2, z + 25);
                     b.userData.box = new THREE.Box3().setFromObject(b);
                     scene.add(b); buildings.push(b);
                 }
