@@ -3,322 +3,431 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Drone Strike Ops - Dual Stick</title>
+    <title>Drone Strike Ops - Urban Warfare</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #010408; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; color: #00ffcc; }
+        body { margin: 0; overflow: hidden; background: #050508; font-family: 'Segoe UI', Roboto, sans-serif; touch-action: none; user-select: none; color: #00ffcc; }
         #ui-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
         
-        /* HUD Top */
-        .hud-header { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; pointer-events: none; }
-        .stat-card { background: rgba(0, 20, 30, 0.8); border: 1px solid rgba(0, 255, 204, 0.3); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px); }
-        .bar-bg { width: 140px; height: 4px; background: rgba(0,255,204,0.1); margin-top: 6px; border-radius: 2px; }
-        #health-bar { width: 100%; height: 100%; background: #00ffcc; box-shadow: 0 0 15px #00ffcc; transition: width 0.3s; }
-        
-        /* Aim View (PIP) */
-        #pip-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 180px; height: 110px; border: 1px solid rgba(0,255,204,0.5); background: #000; overflow: hidden; border-radius: 4px; }
-        .pip-label { position: absolute; bottom: 5px; width: 100%; text-align: center; font-size: 8px; font-weight: bold; letter-spacing: 1px; color: #ff3300; }
+        .hud-top { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .hud-box { 
+            background: rgba(0, 20, 20, 0.7); 
+            padding: 10px 15px; 
+            border-left: 4px solid #00ffcc; 
+            backdrop-filter: blur(5px);
+            font-size: 12px; 
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
 
-        /* Controls Layout */
-        .controls-container { position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 50px; box-sizing: border-box; }
+        #health-container {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 12px; background: rgba(255,0,0,0.2); border: 1px solid #ff3300;
+        }
+        #health-bar { width: 100%; height: 100%; background: #ff3300; transition: width 0.3s; }
         
-        /* Joystick Gauche (Translation) */
-        .joystick-zone { width: 160px; height: 160px; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,204,0.2); border-radius: 50%; position: relative; pointer-events: auto; display: flex; align-items: center; justify-content: center; }
-        #stick { width: 60px; height: 60px; background: #00ffcc; border-radius: 50%; box-shadow: 0 0 20px rgba(0,255,204,0.6); position: absolute; }
+        #aim-camera-container {
+            position: absolute; top: 20px; right: 20px; width: 160px; height: 160px;
+            border: 2px solid rgba(0, 255, 204, 0.8); border-radius: 50%; overflow: hidden; 
+            pointer-events: none; box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
+        }
 
-        /* D-PAD DROITE (Rotation + Altitude + Feu) */
-        .dpad-container { position: relative; width: 220px; height: 220px; pointer-events: auto; }
-        .dpad-btn { position: absolute; width: 65px; height: 65px; background: rgba(0,255,204,0.05); border: 1px solid rgba(0,255,204,0.4); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #00ffcc; transition: all 0.1s; }
-        .dpad-up { top: 0; left: 77px; } /* Altitude + */
-        .dpad-down { bottom: 0; left: 77px; } /* Altitude - */
-        .dpad-left { top: 77px; left: 0; } /* Rotation L */
-        .dpad-right { top: 77px; right: 0; } /* Rotation R */
-        .btn-fire { top: 77px; left: 77px; width: 65px; height: 65px; background: rgba(255, 50, 0, 0.2); border: 2px solid #ff3300; border-radius: 50%; color: #ff3300; font-weight: 900; font-size: 12px; box-shadow: 0 0 15px rgba(255,50,0,0.3); z-index: 2; }
+        .controls-area { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; box-sizing: border-box; pointer-events: none; }
+        
+        #joystick-zone { width: 140px; height: 140px; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,204,0.2); border-radius: 50%; position: relative; pointer-events: auto; }
+        #stick { width: 50px; height: 50px; background: #ffffff; border-radius: 50%; position: absolute; top: 45px; left: 45px; box-shadow: 0 0 15px #fff; }
+
+        .dpad { position: relative; width: 220px; height: 220px; pointer-events: auto; }
+        .dpad-btn { position: absolute; width: 65px; height: 65px; background: rgba(0,255,204,0.1); border: 1px solid rgba(0,255,204,0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #00ffcc; font-weight: bold; }
+        .dpad-up { top: 0; left: 77px; }
+        .dpad-down { bottom: 0; left: 77px; }
+        .dpad-left { top: 77px; left: 0; }
+        .dpad-right { top: 77px; right: 0; }
+        .btn-fire { top: 77px; left: 77px; width: 65px; height: 65px; background: rgba(255, 50, 0, 0.2); border: 2px solid #ff3300; border-radius: 50%; color: #ff3300; z-index: 2; }
         
         .active-btn { background: rgba(0, 255, 204, 0.4) !important; transform: scale(0.95); }
-        .active-fire { background: #ff3300 !important; color: #fff !important; box-shadow: 0 0 30px #ff3300; }
-
-        /* Flash Screen */
-        #flash { position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 5; }
-
-        #msg-screen { position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .btn-restart { margin-top: 30px; padding: 15px 40px; background: #00ffcc; color: #000; border: none; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        #msg-overlay { position: absolute; inset: 0; background: rgba(1,1,3,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; pointer-events: auto; }
+        #damage-flash { position: absolute; inset: 0; background: rgba(255,0,0,0.3); pointer-events: none; display: none; z-index: 99; }
     </style>
 </head>
 <body>
 
-    <div id="flash"></div>
-
     <div id="ui-layer">
-        <div class="hud-header">
-            <div class="stat-card">
-                <div style="font-size: 9px; font-weight: bold;">HULL INTEGRITY</div>
-                <div class="bar-bg"><div id="health-bar"></div></div>
-            </div>
-            <div class="stat-card" style="text-align: right;">
-                <div style="font-size: 9px; font-weight: bold;">ALTITUDE</div>
-                <div style="font-size: 20px; font-weight: bold; color: #fff;"><span id="alt-val">0</span><span style="font-size: 10px; color: #00ffcc; margin-left: 4px;">M</span></div>
-            </div>
+        <div id="damage-flash"></div>
+        <div class="hud-top">
+            <div class="hud-box">ALTITUDE: <span id="alt-val">25.0</span>m</div>
+            <div class="hud-box">HOSTILES: <span id="targets-val">0</span></div>
         </div>
 
-        <div id="pip-container">
-            <div class="pip-label">SATELLITE DOWNLINK</div>
-            <div style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:40px; height:40px; border:1px solid rgba(0,255,204,0.3); border-radius:50%;"></div>
+        <div id="health-container"><div id="health-bar"></div></div>
+
+        <div id="aim-camera-container">
+            <div style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:100%; height:1px; background:rgba(0,255,204,0.6);"></div>
+            <div style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); height:100%; width:1px; background:rgba(0,255,204,0.6);"></div>
+            <div style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:1px solid #00ffcc; border-radius:50%;"></div>
         </div>
 
-        <div class="controls-container">
-            <!-- Stick Gauche : Translation (X, Z) -->
-            <div class="joystick-zone" id="joystick-left">
-                <div id="stick"></div>
-            </div>
-
-            <!-- D-PAD Droite : Rotation + Altitude + Feu -->
-            <div class="dpad-container">
-                <div class="dpad-btn dpad-up" id="ctrl-alt-up">ALT+</div>
-                <div class="dpad-btn dpad-down" id="ctrl-alt-down">ALT-</div>
-                <div class="dpad-btn dpad-left" id="ctrl-rot-left">◀</div>
-                <div class="dpad-btn dpad-right" id="ctrl-rot-right">▶</div>
-                <div class="dpad-btn btn-fire" id="ctrl-fire">FEU</div>
+        <div class="controls-area">
+            <div id="joystick-zone"><div id="stick"></div></div>
+            <div class="dpad">
+                <div class="dpad-btn dpad-up" id="btn-up">MONTER</div>
+                <div class="dpad-btn dpad-down" id="btn-down">DESCENDRE</div>
+                <div class="dpad-btn dpad-left" id="btn-rot-l">PIVOT L</div>
+                <div class="dpad-btn dpad-right" id="btn-rot-r">PIVOT R</div>
+                <div class="dpad-btn btn-fire" id="btn-fire">FEU</div>
             </div>
         </div>
     </div>
 
-    <div id="msg-screen">
-        <h1 style="color: #ff3300; font-size: 40px;">MISSION ÉCHOUÉE</h1>
-        <p>Lien neuronal interrompu.</p>
-        <button class="btn-restart" onclick="location.reload()">RE-DÉPLOIEMENT</button>
+    <div id="msg-overlay">
+        <h1 id="msg-title" style="color:#00ffcc">MISSION ACCOMPLIE</h1>
+        <button onclick="location.reload()" style="margin-top:20px; padding:15px 40px; background:none; border:1px solid #00ffcc; color:#00ffcc; font-weight:bold; cursor:pointer;">RETOUR AU HANGAR</button>
     </div>
 
     <script>
-        let scene, camera, pipCamera, renderer, drone, buildings = [], targets = [], bombs = [];
-        let inputState = { forward: 0, strafe: 0, up: 0, rot: 0 };
-        let droneState = { pos: new THREE.Vector3(0, 50, 0), rotationY: 0, velocity: new THREE.Vector3() };
+        const GRID_SIZE = 100;
+        const ROAD_WIDTH = 40;
+        const SIDEWALK_WIDTH = 10;
 
-        // Configuration Joystick
-        const joystick = {
-            active: false,
-            origin: { x: 0, y: 0 },
-            current: { x: 0, y: 0 },
-            maxDist: 50
+        const TextureGen = {
+            cityGround: () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#1e1e24'; ctx.fillRect(0, 0, 512, 512);
+                ctx.fillStyle = '#0a0a0c'; ctx.fillRect(512-40, 0, 40, 512); ctx.fillRect(0, 512-40, 512, 40);
+                ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.setLineDash([10, 10]);
+                ctx.beginPath(); ctx.moveTo(512-20, 0); ctx.lineTo(512-20, 512); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 512-20); ctx.lineTo(512, 512-20); ctx.stroke();
+                ctx.setLineDash([]); ctx.fillStyle = '#44444a';
+                ctx.fillRect(512-50, 0, 10, 512); ctx.fillRect(512-10, 0, 10, 512);
+                ctx.fillRect(0, 512-50, 512, 10); ctx.fillRect(0, 512-10, 512, 10);
+                const tex = new THREE.CanvasTexture(canvas);
+                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(20, 20);
+                return tex;
+            },
+            building: () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 128; canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#111116'; ctx.fillRect(0, 0, 128, 256);
+                for(let y=10; y<240; y+=25) {
+                    for(let x=10; x<110; x+=20) {
+                        const rand = Math.random();
+                        if(rand > 0.85) ctx.fillStyle = '#ffdf00'; 
+                        else if (rand > 0.75) ctx.fillStyle = '#223344';
+                        else ctx.fillStyle = '#050508';
+                        ctx.fillRect(x, y, 12, 18);
+                    }
+                }
+                return new THREE.CanvasTexture(canvas);
+            }
         };
+
+        let scene, mainCamera, pipCamera, renderer, drone, buildings = [], hostiles = [], bombs = [], enemyBullets = [], rotors = [];
+        let state = { active: true, altitude: 25, health: 100, rotY: 0, vel: new THREE.Vector3(), input: {x:0, z:0, up:0, rot:0} };
 
         function init() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x010408);
-            scene.fog = new THREE.FogExp2(0x010408, 0.004);
+            scene.background = new THREE.Color(0x020205);
+            scene.fog = new THREE.FogExp2(0x020205, 0.003);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-            pipCamera = new THREE.PerspectiveCamera(50, 180/110, 0.1, 1000);
+            mainCamera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 2000);
+            pipCamera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setPixelRatio(window.devicePixelRatio);
             renderer.autoClear = false;
-            renderer.toneMapping = THREE.ReinhardToneMapping;
-            renderer.toneMappingExposure = 1.2;
             document.body.appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0x203050, 0.8));
-            const sun = new THREE.DirectionalLight(0x00ffcc, 1.5);
-            sun.position.set(200, 500, 200);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+            const sun = new THREE.DirectionalLight(0x00ffcc, 0.4);
+            sun.position.set(200, 500, 100);
             scene.add(sun);
 
-            createMap();
-            setupInputListeners();
+            const floor = new THREE.Mesh(
+                new THREE.PlaneGeometry(2000, 2000),
+                new THREE.MeshStandardMaterial({ map: TextureGen.cityGround() })
+            );
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+
+            createDrone();
+            generatePlannedCity();
+            spawnHostiles();
+            setupControls();
             animate();
         }
 
-        function createMap() {
-            // Drone
+        function createDrone() {
             drone = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(2, 0.3, 1.5), new THREE.MeshStandardMaterial({color: 0x111111, metalness: 1, roughness: 0.2}));
-            drone.add(body);
-            
-            // Rotors avec lueur
-            const rGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.05, 16);
-            const rMat = new THREE.MeshBasicMaterial({color: 0x00ffcc, transparent: true, opacity: 0.4});
-            [[-1.1, 0.9], [1.1, 0.9], [-1.1, -0.9], [1.1, -0.9]].forEach(p => {
-                const r = new THREE.Mesh(rGeo, rMat);
-                r.position.set(p[0], 0.1, p[1]);
-                drone.add(r);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.3 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.25, 1.1), bodyMat);
+            body.layers.set(1); drone.add(body);
+            const arm1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 1.8), bodyMat); arm1.rotation.y = Math.PI/4; arm1.layers.set(1); drone.add(arm1);
+            const arm2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 1.8), bodyMat); arm2.rotation.y = -Math.PI/4; arm2.layers.set(1); drone.add(arm2);
+            const rotorMat = new THREE.MeshBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.4});
+            [[0.6,0.6], [-0.6,0.6], [0.6,-0.6], [-0.6,-0.6]].forEach(p => {
+                const r = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.01, 12), rotorMat);
+                r.position.set(p[0], 0.12, p[1]); r.layers.set(1); drone.add(r); rotors.push(r);
             });
-            drone.position.copy(droneState.pos);
+            mainCamera.layers.enable(1);
+            pipCamera.layers.set(0); 
+            drone.position.set(0, state.altitude, 0);
             scene.add(drone);
+        }
 
-            // Grille Tech
-            const grid = new THREE.GridHelper(5000, 100, 0x00ffcc, 0x051515);
-            grid.material.opacity = 0.2;
-            grid.material.transparent = true;
-            scene.add(grid);
-
-            // Bâtiments Cyber
-            for(let i=0; i<80; i++) {
-                const h = 30 + Math.random() * 100;
-                const w = 15 + Math.random() * 10;
-                const b = new THREE.Mesh(
-                    new THREE.BoxGeometry(w, h, w),
-                    new THREE.MeshStandardMaterial({color: 0x020508, emissive: 0x00ffff, emissiveIntensity: Math.random() > 0.8 ? 0.3 : 0.05})
-                );
-                b.position.set((Math.random()-0.5)*800, h/2, (Math.random()-0.5)*800);
-                if(b.position.length() < 40) b.position.x += 50;
-                scene.add(b);
-                buildings.push(b);
-            }
-
-            // Objectifs
-            for(let i=0; i<8; i++) {
-                const t = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 10, 8), new THREE.MeshStandardMaterial({color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 1}));
-                t.position.set((Math.random()-0.5)*700, 5, (Math.random()-0.5)*700);
-                scene.add(t);
-                targets.push(t);
+        function generatePlannedCity() {
+            const bTex = TextureGen.building();
+            const MAP_SIZE = 800;
+            const STEP = 100;
+            for(let z = -MAP_SIZE; z < MAP_SIZE; z += STEP) {
+                for(let x = -MAP_SIZE; x < MAP_SIZE; x += STEP) {
+                    if (Math.abs(x) < 50 && Math.abs(z) < 50) continue;
+                    const num = 1 + Math.floor(Math.random() * 2);
+                    for(let i=0; i<num; i++) {
+                        const h = 30 + Math.random() * 80;
+                        const w = 15 + Math.random() * 10;
+                        const b = new THREE.Mesh(
+                            new THREE.BoxGeometry(w, h, w),
+                            new THREE.MeshStandardMaterial({ map: bTex, color: 0x888888 })
+                        );
+                        const bx = x + 15 + Math.random() * 20;
+                        const bz = z + 15 + Math.random() * 20;
+                        b.position.set(bx, h/2, bz);
+                        b.userData.box = new THREE.Box3().setFromObject(b);
+                        scene.add(b);
+                        buildings.push(b);
+                    }
+                }
             }
         }
 
-        function triggerHaptic(type = 'fire') {
-            if ("vibrate" in navigator) {
-                if(type === 'fire') navigator.vibrate(40);
-                else if(type === 'hit') navigator.vibrate([100, 50, 100]);
+        function spawnHostiles() {
+            for(let i=0; i<12; i++) {
+                const s = createSoldier();
+                s.position.set((Math.random()-0.5)*1400, 1.5, (Math.random()-0.5)*1400);
+                hostiles.push({ mesh: s, type: 'soldier', lastShoot: 0 });
+                scene.add(s);
             }
-            const f = document.getElementById('flash');
-            f.style.opacity = type === 'fire' ? "0.15" : "0.4";
-            setTimeout(() => f.style.opacity = "0", 100);
+            for(let i=0; i<5; i++) {
+                const t = createTank();
+                const onXRoad = Math.random() > 0.5;
+                let x = onXRoad ? (Math.random()-0.5)*1500 : (Math.round((Math.random()-0.5)*15)*100 + 80);
+                let z = !onXRoad ? (Math.random()-0.5)*1500 : (Math.round((Math.random()-0.5)*15)*100 + 80);
+                t.position.set(x, 1, z);
+                hostiles.push({ mesh: t, type: 'tank', lastShoot: 0, onXRoad: onXRoad, dir: 1, aimingTime: 0 });
+                scene.add(t);
+            }
+            document.getElementById('targets-val').innerText = hostiles.length;
+        }
+
+        function createSoldier() {
+            const g = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.8), new THREE.MeshBasicMaterial({color: 0xff3300}));
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.35), new THREE.MeshBasicMaterial({color: 0xff3300}));
+            head.position.y = 1.1; g.add(body, head);
+            return g;
+        }
+
+        function createTank() {
+            const g = new THREE.Group();
+            const base = new THREE.Mesh(new THREE.BoxGeometry(6, 1.5, 4), new THREE.MeshStandardMaterial({color: 0x2a332a}));
+            const turret = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 3), new THREE.MeshStandardMaterial({color: 0x3a4a3a}));
+            turret.position.y = 1.2;
+            const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 5), new THREE.MeshStandardMaterial({color: 0x111111}));
+            gun.rotation.z = Math.PI/2; gun.position.set(2.5, 1.2, 0);
+            g.add(base, turret, gun);
+            g.userData.gun = gun;
+            return g;
+        }
+
+        function takeDamage(amt) {
+            state.health -= amt;
+            document.getElementById('health-bar').style.width = Math.max(0, state.health) + "%";
+            const flash = document.getElementById('damage-flash');
+            flash.style.display = 'block';
+            setTimeout(() => flash.style.display = 'none', 100);
+            if(state.health <= 0 && state.active) {
+                state.active = false;
+                document.getElementById('msg-title').innerText = "DRONE DÉTRUIT";
+                document.getElementById('msg-overlay').style.display = 'flex';
+            }
+        }
+
+        function setupControls() {
+            const stick = document.getElementById('stick');
+            const zone = document.getElementById('joystick-zone');
+            const handle = (e) => {
+                const r = zone.getBoundingClientRect();
+                const t = e.touches ? e.touches[0] : e;
+                const dx = t.clientX - (r.left + r.width/2);
+                const dy = t.clientY - (r.top + r.height/2);
+                const d = Math.min(Math.sqrt(dx*dx+dy*dy), 45);
+                const a = Math.atan2(dy, dx);
+                stick.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
+                state.input.x = (Math.cos(a)*d)/45; state.input.z = (Math.sin(a)*d)/45;
+            };
+            zone.onpointerdown = (e) => { zone.setPointerCapture(e.pointerId); handle(e); };
+            zone.onpointermove = (e) => { if(e.buttons) handle(e); };
+            zone.onpointerup = () => { stick.style.transform = 'none'; state.input.x = state.input.z = 0; };
+
+            const bind = (id, k, v) => {
+                const el = document.getElementById(id);
+                el.onpointerdown = (e) => { e.preventDefault(); if(k==='fire') fire(); else state.input[k]=v; el.classList.add('active-btn'); };
+                el.onpointerup = () => { if(k!=='fire') state.input[k]=0; el.classList.remove('active-btn'); };
+            };
+            bind('btn-up','up',1); bind('btn-down','up',-1);
+            bind('btn-rot-l','rot',1); bind('btn-rot-r','rot',-1);
+            bind('btn-fire','fire',0);
         }
 
         function fire() {
-            triggerHaptic('fire');
-            const missile = new THREE.Mesh(new THREE.SphereGeometry(0.6), new THREE.MeshBasicMaterial({color: 0xffaa00}));
-            missile.position.copy(drone.position);
-            scene.add(missile);
-            
-            // Calcul vecteur directionnel basé sur la rotation du drone
-            const dir = new THREE.Vector3(0, -0.2, -3).applyAxisAngle(new THREE.Vector3(0,1,0), droneState.rotationY);
-            bombs.push({ mesh: missile, v: dir, life: 200 });
-        }
-
-        function setupInputListeners() {
-            const jZone = document.getElementById('joystick-left');
-            const stick = document.getElementById('stick');
-
-            const handleMove = (e) => {
-                if(!joystick.active) return;
-                const touch = e.touches ? e.touches[0] : e;
-                const rect = jZone.getBoundingClientRect();
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                
-                let dx = touch.clientX - centerX;
-                let dy = touch.clientY - centerY;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-                
-                if(dist > joystick.maxDist) {
-                    dx *= joystick.maxDist / dist;
-                    dy *= joystick.maxDist / dist;
-                }
-
-                stick.style.transform = `translate(${dx}px, ${dy}px)`;
-                inputState.strafe = dx / joystick.maxDist;
-                inputState.forward = -dy / joystick.maxDist;
-            };
-
-            jZone.addEventListener('pointerdown', (e) => { joystick.active = true; handleMove(e); });
-            window.addEventListener('pointermove', handleMove);
-            window.addEventListener('pointerup', () => {
-                joystick.active = false;
-                stick.style.transform = `translate(0,0)`;
-                inputState.forward = 0;
-                inputState.strafe = 0;
-            });
-
-            // D-PAD & FEU
-            const bindBtn = (id, axis, val) => {
-                const el = document.getElementById(id);
-                el.addEventListener('pointerdown', (e) => { 
-                    e.preventDefault();
-                    if(axis === 'fire') { fire(); el.classList.add('active-fire'); }
-                    else { inputState[axis] = val; el.classList.add('active-btn'); }
-                });
-                el.addEventListener('pointerup', () => { 
-                    if(axis !== 'fire') inputState[axis] = 0; 
-                    el.classList.remove('active-btn', 'active-fire'); 
-                });
-            };
-
-            bindBtn('ctrl-alt-up', 'up', 1);
-            bindBtn('ctrl-alt-down', 'up', -1);
-            bindBtn('ctrl-rot-left', 'rot', 1);
-            bindBtn('ctrl-rot-right', 'rot', -1);
-            bindBtn('ctrl-fire', 'fire', 1);
+            if(!state.active) return;
+            const m = new THREE.Mesh(new THREE.SphereGeometry(0.4), new THREE.MeshBasicMaterial({color: 0xffffff}));
+            m.position.copy(drone.position);
+            scene.add(m);
+            bombs.push({ mesh: m, vy: -0.6 });
         }
 
         function animate() {
             requestAnimationFrame(animate);
+            if(!state.active) return;
 
-            // Gestion Physique Drone
-            droneState.rotationY += inputState.rot * 0.05;
-            drone.rotation.y = droneState.rotationY;
+            // Mouvement Drone
+            state.rotY += state.input.rot * 0.04;
+            state.altitude = THREE.MathUtils.clamp(state.altitude + state.input.up * 0.5, 2, 250);
+            drone.rotation.y = state.rotY;
+            drone.position.y = state.altitude;
+            let move = new THREE.Vector3(state.input.x * 1.5, 0, state.input.z * 1.5).applyAxisAngle(new THREE.Vector3(0,1,0), state.rotY);
+            state.vel.lerp(move, 0.1);
+            drone.position.add(state.vel);
+            drone.rotation.x = THREE.MathUtils.lerp(drone.rotation.x, -state.input.z * 0.25, 0.1);
+            drone.rotation.z = THREE.MathUtils.lerp(drone.rotation.z, -state.input.x * 0.25, 0.1);
+            rotors.forEach(r => r.rotation.y += 0.8);
 
-            let force = new THREE.Vector3(inputState.strafe * 0.4, 0, -inputState.forward * 0.4);
-            force.applyAxisAngle(new THREE.Vector3(0,1,0), droneState.rotationY);
-            
-            droneState.velocity.add(force);
-            droneState.velocity.multiplyScalar(0.94); // Friction air
-
-            droneState.pos.add(droneState.velocity);
-            droneState.pos.y += inputState.up * 0.5;
-            droneState.pos.y = Math.max(5, droneState.pos.y);
-            drone.position.copy(droneState.pos);
-
-            // Inclinaison dynamique
-            drone.rotation.x = THREE.MathUtils.lerp(drone.rotation.x, inputState.forward * 0.3, 0.1);
-            drone.rotation.z = THREE.MathUtils.lerp(drone.rotation.z, -inputState.strafe * 0.3, 0.1);
-
-            // Caméra principale (Suivi doux)
-            const camOffset = new THREE.Vector3(0, 10, 25).applyAxisAngle(new THREE.Vector3(0,1,0), droneState.rotationY);
-            camera.position.lerp(drone.position.clone().add(camOffset), 0.1);
-            camera.lookAt(drone.position.clone().add(new THREE.Vector3(0,-5,-40).applyAxisAngle(new THREE.Vector3(0,1,0), droneState.rotationY)));
-
-            // Caméra PIP (Verticale)
-            pipCamera.position.set(drone.position.x, drone.position.y - 1, drone.position.z);
-            pipCamera.lookAt(drone.position.x, 0, drone.position.z);
-
-            // Bombes & Collisions
-            for(let i=bombs.length-1; i>=0; i--) {
-                const b = bombs[i];
-                b.mesh.position.add(b.v);
-                b.v.y -= 0.02; // Gravité
-                b.life--;
-
-                if(b.mesh.position.y <= 0 || b.life <= 0) {
-                    targets.forEach((t, idx) => {
-                        if(t.position.distanceTo(b.mesh.position) < 15) {
-                            triggerHaptic('hit');
-                            scene.remove(t);
-                            targets.splice(idx, 1);
-                        }
-                    });
-                    scene.remove(b.mesh);
-                    bombs.splice(i, 1);
+            // Collision Immeubles
+            const droneBox = new THREE.Box3().setFromCenterAndSize(drone.position, new THREE.Vector3(1.2, 0.4, 1.2));
+            for(let b of buildings) {
+                if(droneBox.intersectsBox(b.userData.box)) {
+                    takeDamage(75);
+                    drone.position.sub(state.vel.multiplyScalar(2.5));
+                    state.vel.set(0,0,0);
+                    break;
                 }
             }
 
-            document.getElementById('alt-val').innerText = drone.position.y.toFixed(0);
+            // Caméras
+            const camOff = new THREE.Vector3(0, 20, 40).applyAxisAngle(new THREE.Vector3(0,1,0), state.rotY);
+            mainCamera.position.lerp(drone.position.clone().add(camOff), 0.1);
+            mainCamera.lookAt(drone.position.x, drone.position.y - 10, drone.position.z);
+            pipCamera.position.copy(drone.position);
+            pipCamera.lookAt(drone.position.x, 0, drone.position.z);
 
-            // Rendu Multi-Pass
+            const now = Date.now();
+            const droneSpeed = state.vel.length(); // Max approx 1.5
+
+            for(let h of hostiles) {
+                const dist = h.mesh.position.distanceTo(drone.position);
+                
+                if(h.type === 'tank') {
+                    // Patrouille
+                    if(h.onXRoad) { h.mesh.position.x += 0.25 * h.dir; if(Math.abs(h.mesh.position.x) > 950) h.dir *= -1; h.mesh.rotation.y = h.dir > 0 ? 0 : Math.PI; }
+                    else { h.mesh.position.z += 0.25 * h.dir; if(Math.abs(h.mesh.position.z) > 950) h.dir *= -1; h.mesh.rotation.y = h.dir > 0 ? -Math.PI/2 : Math.PI/2; }
+                    
+                    // Tir Tank (Lent + Angle mort vertical)
+                    const vectorToDrone = drone.position.clone().sub(h.mesh.position);
+                    const angleToDrone = vectorToDrone.angleTo(new THREE.Vector3(0, 1, 0)); 
+                    
+                    // Angle mort : Si le drone est trop "au dessus" (angle petit vers le haut), le tank ne peut pas lever son canon
+                    // Math.PI/2 est l'horizontale. On autorise entre 45° et 135° par rapport à la verticale
+                    const canAim = angleToDrone > 0.8 && angleToDrone < 2.4;
+
+                    if(dist < 200 && canAim) {
+                        h.aimingTime += 16; // Incrément de frame
+                        if(h.aimingTime > 2000 && now - h.lastShoot > 4000) { // 2s de visée, 4s entre tirs
+                            const b = new THREE.Mesh(new THREE.SphereGeometry(0.8), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+                            b.position.copy(h.mesh.position).add(new THREE.Vector3(0, 2, 0));
+                            const dir = drone.position.clone().sub(b.position).normalize();
+                            scene.add(b);
+                            enemyBullets.push({mesh: b, dir: dir, life: 300, damage: 20});
+                            h.lastShoot = now;
+                            h.aimingTime = 0;
+                        }
+                    } else {
+                        h.aimingTime = Math.max(0, h.aimingTime - 10);
+                    }
+                } else {
+                    // Tir Soldat (Précision basée sur mouvement)
+                    if(dist < 120 && now - h.lastShoot > 2000) {
+                        const b = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({color: 0xff3300}));
+                        b.position.copy(h.mesh.position).add(new THREE.Vector3(0, 1.2, 0));
+                        
+                        // Calcul chance de toucher
+                        // Vitesse max (1.5) -> 5% chance. Vitesse 0 -> 95% chance.
+                        const hitChance = THREE.MathUtils.lerp(0.95, 0.05, droneSpeed / 1.5);
+                        
+                        let targetPos = drone.position.clone();
+                        if(Math.random() > hitChance) {
+                            // Dispersion si raté (on ajoute un offset aléatoire important)
+                            targetPos.x += (Math.random() - 0.5) * 15;
+                            targetPos.z += (Math.random() - 0.5) * 15;
+                        }
+                        
+                        const dir = targetPos.sub(b.position).normalize();
+                        scene.add(b);
+                        enemyBullets.push({mesh: b, dir: dir, life: 150, damage: 10});
+                        h.lastShoot = now;
+                    }
+                }
+            }
+
+            // Balles ennemies
+            for(let i=enemyBullets.length-1; i>=0; i--) {
+                let eb = enemyBullets[i]; eb.mesh.position.add(eb.dir.clone().multiplyScalar(1.8)); eb.life--;
+                if(eb.mesh.position.distanceTo(drone.position) < 2.5) {
+                    takeDamage(eb.damage); scene.remove(eb.mesh); enemyBullets.splice(i, 1);
+                } else if(eb.life <= 0) { scene.remove(eb.mesh); enemyBullets.splice(i, 1); }
+            }
+
+            // Bombes Drone
+            for(let i=bombs.length-1; i>=0; i--) {
+                let b = bombs[i]; b.vy -= 0.025; b.mesh.position.y += b.vy;
+                if(b.mesh.position.y <= 0) {
+                    const impactPos = new THREE.Vector3(b.mesh.position.x, 0, b.mesh.position.z);
+                    const mark = new THREE.Mesh(new THREE.CircleGeometry(10, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.8 }));
+                    mark.rotation.x = -Math.PI / 2; mark.position.set(impactPos.x, 0.1, impactPos.z); scene.add(mark);
+                    for(let j=hostiles.length-1; j>=0; j--) {
+                        const hDist = hostiles[j].mesh.position.distanceTo(impactPos);
+                        const radius = hostiles[j].type === 'tank' ? 12 : 18;
+                        if(hDist < radius) {
+                            scene.remove(hostiles[j].mesh); hostiles.splice(j, 1);
+                            document.getElementById('targets-val').innerText = hostiles.length;
+                        }
+                    }
+                    scene.remove(b.mesh); bombs.splice(i, 1);
+                    if(hostiles.length === 0) { state.active = false; document.getElementById('msg-overlay').style.display = 'flex'; }
+                }
+            }
+
+            document.getElementById('alt-val').innerText = state.altitude.toFixed(1);
             const w = window.innerWidth, h = window.innerHeight;
+            renderer.clear();
             renderer.setViewport(0, 0, w, h);
             renderer.setScissorTest(false);
-            renderer.render(scene, camera);
-
+            renderer.render(scene, mainCamera);
             renderer.setScissorTest(true);
-            renderer.setScissor(w/2 - 90, h - 130, 180, 110);
-            renderer.setViewport(w/2 - 90, h - 130, 180, 110);
+            renderer.setScissor(w - 180, h - 180, 160, 160);
+            renderer.setViewport(w - 180, h - 180, 160, 160);
             renderer.render(scene, pipCamera);
         }
 
         window.onload = init;
         window.onresize = () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
+            mainCamera.aspect = window.innerWidth / window.innerHeight;
+            mainCamera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         };
     </script>
