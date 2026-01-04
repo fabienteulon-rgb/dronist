@@ -3,12 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Drone Strike Ops - Urban Warfare</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; overflow: hidden; background: #050508; font-family: 'Segoe UI', Roboto, sans-serif; touch-action: none; user-select: none; color: #00ffcc; }
         #ui-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
         
+        /* Orientation Alert */
+        #orientation-overlay {
+            position: fixed; inset: 0; background: #050508; z-index: 1000;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 20px;
+        }
+        @media (orientation: portrait) {
+            #orientation-overlay { display: flex; }
+        }
+
         .hud-top { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
         .hud-box { 
             background: rgba(0, 20, 20, 0.7); 
@@ -22,35 +34,48 @@
 
         #health-container {
             position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            width: 300px; height: 12px; background: rgba(255,0,0,0.2); border: 1px solid #ff3300;
+            width: 200px; height: 8px; background: rgba(255,0,0,0.2); border: 1px solid #ff3300;
         }
         #health-bar { width: 100%; height: 100%; background: #ff3300; transition: width 0.3s; }
         
         #aim-camera-container {
-            position: absolute; top: 20px; right: 20px; width: 160px; height: 160px;
+            position: absolute; top: 20px; right: 20px; width: 120px; height: 120px;
             border: 2px solid rgba(0, 255, 204, 0.8); border-radius: 50%; overflow: hidden; 
             pointer-events: none; box-shadow: 0 0 20px rgba(0, 255, 204, 0.4);
         }
 
-        .controls-area { position: absolute; bottom: 40px; width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0 40px; box-sizing: border-box; pointer-events: none; }
+        .controls-area { position: absolute; bottom: 20px; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 40px; box-sizing: border-box; pointer-events: none; }
         
-        #joystick-zone { width: 140px; height: 140px; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,204,0.2); border-radius: 50%; position: relative; pointer-events: auto; }
-        #stick { width: 50px; height: 50px; background: #ffffff; border-radius: 50%; position: absolute; top: 45px; left: 45px; box-shadow: 0 0 15px #fff; }
+        #joystick-zone { width: 120px; height: 120px; background: rgba(255,255,255,0.05); border: 1px solid rgba(0,255,204,0.2); border-radius: 50%; position: relative; pointer-events: auto; }
+        #stick { width: 40px; height: 40px; background: #ffffff; border-radius: 50%; position: absolute; top: 40px; left: 40px; box-shadow: 0 0 15px #fff; }
 
-        .dpad { position: relative; width: 220px; height: 220px; pointer-events: auto; }
-        .dpad-btn { position: absolute; width: 65px; height: 65px; background: rgba(0,255,204,0.1); border: 1px solid rgba(0,255,204,0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #00ffcc; font-weight: bold; }
-        .dpad-up { top: 0; left: 77px; }
-        .dpad-down { bottom: 0; left: 77px; }
-        .dpad-left { top: 77px; left: 0; }
-        .dpad-right { top: 77px; right: 0; }
-        .btn-fire { top: 77px; left: 77px; width: 65px; height: 65px; background: rgba(255, 50, 0, 0.2); border: 2px solid #ff3300; border-radius: 50%; color: #ff3300; z-index: 2; }
+        .dpad { position: relative; width: 180px; height: 180px; pointer-events: auto; }
+        .dpad-btn { position: absolute; width: 55px; height: 55px; background: rgba(0,255,204,0.1); border: 1px solid rgba(0,255,204,0.3); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #00ffcc; font-weight: bold; text-align: center; }
+        .dpad-up { top: 0; left: 62px; }
+        .dpad-down { bottom: 0; left: 62px; }
+        .dpad-left { top: 62px; left: 0; }
+        .dpad-right { top: 62px; right: 0; }
+        .btn-fire { top: 62px; left: 62px; width: 55px; height: 55px; background: rgba(255, 50, 0, 0.2); border: 2px solid #ff3300; border-radius: 50%; color: #ff3300; z-index: 2; }
         
+        #fs-btn {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            padding: 10px 20px; background: rgba(0,255,204,0.2); border: 1px solid #00ffcc;
+            color: #00ffcc; font-size: 10px; font-weight: bold; border-radius: 20px;
+            pointer-events: auto; cursor: pointer; backdrop-filter: blur(5px);
+        }
+
         .active-btn { background: rgba(0, 255, 204, 0.4) !important; transform: scale(0.95); }
         #msg-overlay { position: absolute; inset: 0; background: rgba(1,1,3,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; pointer-events: auto; }
         #damage-flash { position: absolute; inset: 0; background: rgba(255,0,0,0.3); pointer-events: none; display: none; z-index: 99; }
     </style>
 </head>
 <body>
+
+    <div id="orientation-overlay">
+        <div style="font-size: 40px; margin-bottom: 20px;">🔄</div>
+        <h2>MODE PAYSAGE REQUIS</h2>
+        <p>Veuillez faire pivoter votre appareil pour jouer.</p>
+    </div>
 
     <div id="ui-layer">
         <div id="damage-flash"></div>
@@ -66,6 +91,8 @@
             <div style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); height:100%; width:1px; background:rgba(0,255,204,0.6);"></div>
             <div style="position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border:1px solid #00ffcc; border-radius:50%;"></div>
         </div>
+
+        <button id="fs-btn">ACTIVER PLEIN ÉCRAN</button>
 
         <div class="controls-area">
             <div id="joystick-zone"><div id="stick"></div></div>
@@ -85,10 +112,30 @@
     </div>
 
     <script>
-        const GRID_SIZE = 100;
-        const ROAD_WIDTH = 40;
-        const SIDEWALK_WIDTH = 10;
+        // --- FULLSCREEN & ORIENTATION LOGIC ---
+        const fsBtn = document.getElementById('fs-btn');
+        fsBtn.addEventListener('click', async () => {
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                    if (screen.orientation && screen.orientation.lock) {
+                        await screen.orientation.lock('landscape').catch(e => console.log("Lock failed"));
+                    }
+                    fsBtn.style.display = 'none';
+                }
+            } catch (err) {
+                console.log("Fullscreen failed", err);
+            }
+        });
 
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                fsBtn.style.display = 'block';
+            }
+        });
+
+        // --- GAME ENGINE ---
+        const GRID_SIZE = 100;
         const TextureGen = {
             cityGround: () => {
                 const canvas = document.createElement('canvas');
@@ -96,12 +143,6 @@
                 const ctx = canvas.getContext('2d');
                 ctx.fillStyle = '#1e1e24'; ctx.fillRect(0, 0, 512, 512);
                 ctx.fillStyle = '#0a0a0c'; ctx.fillRect(512-40, 0, 40, 512); ctx.fillRect(0, 512-40, 512, 40);
-                ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.setLineDash([10, 10]);
-                ctx.beginPath(); ctx.moveTo(512-20, 0); ctx.lineTo(512-20, 512); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, 512-20); ctx.lineTo(512, 512-20); ctx.stroke();
-                ctx.setLineDash([]); ctx.fillStyle = '#44444a';
-                ctx.fillRect(512-50, 0, 10, 512); ctx.fillRect(512-10, 0, 10, 512);
-                ctx.fillRect(0, 512-50, 512, 10); ctx.fillRect(0, 512-10, 512, 10);
                 const tex = new THREE.CanvasTexture(canvas);
                 tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
                 tex.repeat.set(20, 20);
@@ -114,10 +155,7 @@
                 ctx.fillStyle = '#111116'; ctx.fillRect(0, 0, 128, 256);
                 for(let y=10; y<240; y+=25) {
                     for(let x=10; x<110; x+=20) {
-                        const rand = Math.random();
-                        if(rand > 0.85) ctx.fillStyle = '#ffdf00'; 
-                        else if (rand > 0.75) ctx.fillStyle = '#223344';
-                        else ctx.fillStyle = '#050508';
+                        ctx.fillStyle = Math.random() > 0.85 ? '#ffdf00' : '#050508';
                         ctx.fillRect(x, y, 12, 18);
                     }
                 }
@@ -138,7 +176,7 @@
 
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.autoClear = false;
             document.body.appendChild(renderer.domElement);
 
@@ -181,44 +219,32 @@
 
         function generatePlannedCity() {
             const bTex = TextureGen.building();
-            const MAP_SIZE = 800;
+            const MAP_SIZE = 600;
             const STEP = 100;
             for(let z = -MAP_SIZE; z < MAP_SIZE; z += STEP) {
                 for(let x = -MAP_SIZE; x < MAP_SIZE; x += STEP) {
                     if (Math.abs(x) < 50 && Math.abs(z) < 50) continue;
-                    const num = 1 + Math.floor(Math.random() * 2);
-                    for(let i=0; i<num; i++) {
-                        const h = 30 + Math.random() * 80;
-                        const w = 15 + Math.random() * 10;
-                        const b = new THREE.Mesh(
-                            new THREE.BoxGeometry(w, h, w),
-                            new THREE.MeshStandardMaterial({ map: bTex, color: 0x888888 })
-                        );
-                        const bx = x + 15 + Math.random() * 20;
-                        const bz = z + 15 + Math.random() * 20;
-                        b.position.set(bx, h/2, bz);
-                        b.userData.box = new THREE.Box3().setFromObject(b);
-                        scene.add(b);
-                        buildings.push(b);
-                    }
+                    const h = 30 + Math.random() * 80;
+                    const w = 15 + Math.random() * 10;
+                    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), new THREE.MeshStandardMaterial({ map: bTex, color: 0x888888 }));
+                    b.position.set(x + 15, h/2, z + 15);
+                    b.userData.box = new THREE.Box3().setFromObject(b);
+                    scene.add(b); buildings.push(b);
                 }
             }
         }
 
         function spawnHostiles() {
-            for(let i=0; i<12; i++) {
+            for(let i=0; i<10; i++) {
                 const s = createSoldier();
-                s.position.set((Math.random()-0.5)*1400, 1.5, (Math.random()-0.5)*1400);
+                s.position.set((Math.random()-0.5)*1200, 1.5, (Math.random()-0.5)*1200);
                 hostiles.push({ mesh: s, type: 'soldier', lastShoot: 0 });
                 scene.add(s);
             }
-            for(let i=0; i<5; i++) {
+            for(let i=0; i<4; i++) {
                 const t = createTank();
-                const onXRoad = Math.random() > 0.5;
-                let x = onXRoad ? (Math.random()-0.5)*1500 : (Math.round((Math.random()-0.5)*15)*100 + 80);
-                let z = !onXRoad ? (Math.random()-0.5)*1500 : (Math.round((Math.random()-0.5)*15)*100 + 80);
-                t.position.set(x, 1, z);
-                hostiles.push({ mesh: t, type: 'tank', lastShoot: 0, onXRoad: onXRoad, dir: 1, aimingTime: 0 });
+                t.position.set((Math.random()-0.5)*1200, 1, (Math.random()-0.5)*1200);
+                hostiles.push({ mesh: t, type: 'tank', lastShoot: 0, dir: 1, aimingTime: 0 });
                 scene.add(t);
             }
             document.getElementById('targets-val').innerText = hostiles.length;
@@ -240,7 +266,6 @@
             const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 5), new THREE.MeshStandardMaterial({color: 0x111111}));
             gun.rotation.z = Math.PI/2; gun.position.set(2.5, 1.2, 0);
             g.add(base, turret, gun);
-            g.userData.gun = gun;
             return g;
         }
 
@@ -265,21 +290,21 @@
                 const t = e.touches ? e.touches[0] : e;
                 const dx = t.clientX - (r.left + r.width/2);
                 const dy = t.clientY - (r.top + r.height/2);
-                const d = Math.min(Math.sqrt(dx*dx+dy*dy), 45);
+                const d = Math.min(Math.sqrt(dx*dx+dy*dy), 40);
                 const a = Math.atan2(dy, dx);
                 stick.style.transform = `translate(${Math.cos(a)*d}px, ${Math.sin(a)*d}px)`;
-                state.input.x = (Math.cos(a)*d)/45; state.input.z = (Math.sin(a)*d)/45;
+                state.input.x = (Math.cos(a)*d)/40; state.input.z = (Math.sin(a)*d)/40;
             };
-            zone.onpointerdown = (e) => { zone.setPointerCapture(e.pointerId); handle(e); };
-            zone.onpointermove = (e) => { if(e.buttons) handle(e); };
-            zone.onpointerup = () => { stick.style.transform = 'none'; state.input.x = state.input.z = 0; };
+            zone.addEventListener('pointerdown', (e) => { zone.setPointerCapture(e.pointerId); handle(e); });
+            zone.addEventListener('pointermove', (e) => { if(e.buttons) handle(e); });
+            zone.addEventListener('pointerup', () => { stick.style.transform = 'none'; state.input.x = state.input.z = 0; });
 
             const bind = (id, k, v) => {
                 const el = document.getElementById(id);
                 el.onpointerdown = (e) => { e.preventDefault(); if(k==='fire') fire(); else state.input[k]=v; el.classList.add('active-btn'); };
                 el.onpointerup = () => { if(k!=='fire') state.input[k]=0; el.classList.remove('active-btn'); };
             };
-            bind('btn-up','up',1); bind('btn-down','up',-1);
+            bind('btn-up','up',0.8); bind('btn-down','up',-0.8);
             bind('btn-rot-l','rot',1); bind('btn-rot-r','rot',-1);
             bind('btn-fire','fire',0);
         }
@@ -296,86 +321,51 @@
             requestAnimationFrame(animate);
             if(!state.active) return;
 
-            // Mouvement Drone
             state.rotY += state.input.rot * 0.04;
-            state.altitude = THREE.MathUtils.clamp(state.altitude + state.input.up * 0.5, 2, 250);
+            state.altitude = THREE.MathUtils.clamp(state.altitude + state.input.up * 0.5, 2, 200);
             drone.rotation.y = state.rotY;
             drone.position.y = state.altitude;
             let move = new THREE.Vector3(state.input.x * 1.5, 0, state.input.z * 1.5).applyAxisAngle(new THREE.Vector3(0,1,0), state.rotY);
             state.vel.lerp(move, 0.1);
             drone.position.add(state.vel);
-            drone.rotation.x = THREE.MathUtils.lerp(drone.rotation.x, -state.input.z * 0.25, 0.1);
-            drone.rotation.z = THREE.MathUtils.lerp(drone.rotation.z, -state.input.x * 0.25, 0.1);
             rotors.forEach(r => r.rotation.y += 0.8);
 
-            // Collision Immeubles
-            const droneBox = new THREE.Box3().setFromCenterAndSize(drone.position, new THREE.Vector3(1.2, 0.4, 1.2));
-            for(let b of buildings) {
-                if(droneBox.intersectsBox(b.userData.box)) {
-                    takeDamage(75);
-                    drone.position.sub(state.vel.multiplyScalar(2.5));
-                    state.vel.set(0,0,0);
-                    break;
-                }
-            }
-
-            // Caméras
-            const camOff = new THREE.Vector3(0, 20, 40).applyAxisAngle(new THREE.Vector3(0,1,0), state.rotY);
+            const camOff = new THREE.Vector3(0, 15, 30).applyAxisAngle(new THREE.Vector3(0,1,0), state.rotY);
             mainCamera.position.lerp(drone.position.clone().add(camOff), 0.1);
-            mainCamera.lookAt(drone.position.x, drone.position.y - 10, drone.position.z);
+            mainCamera.lookAt(drone.position.x, drone.position.y - 8, drone.position.z);
             pipCamera.position.copy(drone.position);
             pipCamera.lookAt(drone.position.x, 0, drone.position.z);
 
             const now = Date.now();
-            const droneSpeed = state.vel.length(); // Max approx 1.5
+            const droneSpeed = state.vel.length();
 
             for(let h of hostiles) {
                 const dist = h.mesh.position.distanceTo(drone.position);
-                
                 if(h.type === 'tank') {
-                    // Patrouille
-                    if(h.onXRoad) { h.mesh.position.x += 0.25 * h.dir; if(Math.abs(h.mesh.position.x) > 950) h.dir *= -1; h.mesh.rotation.y = h.dir > 0 ? 0 : Math.PI; }
-                    else { h.mesh.position.z += 0.25 * h.dir; if(Math.abs(h.mesh.position.z) > 950) h.dir *= -1; h.mesh.rotation.y = h.dir > 0 ? -Math.PI/2 : Math.PI/2; }
-                    
-                    // Tir Tank (Lent + Angle mort vertical)
                     const vectorToDrone = drone.position.clone().sub(h.mesh.position);
                     const angleToDrone = vectorToDrone.angleTo(new THREE.Vector3(0, 1, 0)); 
-                    
-                    // Angle mort : Si le drone est trop "au dessus" (angle petit vers le haut), le tank ne peut pas lever son canon
-                    // Math.PI/2 est l'horizontale. On autorise entre 45° et 135° par rapport à la verticale
                     const canAim = angleToDrone > 0.8 && angleToDrone < 2.4;
-
-                    if(dist < 200 && canAim) {
-                        h.aimingTime += 16; // Incrément de frame
-                        if(h.aimingTime > 2000 && now - h.lastShoot > 4000) { // 2s de visée, 4s entre tirs
+                    if(dist < 180 && canAim) {
+                        h.aimingTime += 16;
+                        if(h.aimingTime > 2000 && now - h.lastShoot > 4000) {
                             const b = new THREE.Mesh(new THREE.SphereGeometry(0.8), new THREE.MeshBasicMaterial({color: 0xffaa00}));
                             b.position.copy(h.mesh.position).add(new THREE.Vector3(0, 2, 0));
                             const dir = drone.position.clone().sub(b.position).normalize();
                             scene.add(b);
-                            enemyBullets.push({mesh: b, dir: dir, life: 300, damage: 20});
-                            h.lastShoot = now;
-                            h.aimingTime = 0;
+                            enemyBullets.push({mesh: b, dir: dir, life: 300, damage: 25});
+                            h.lastShoot = now; h.aimingTime = 0;
                         }
-                    } else {
-                        h.aimingTime = Math.max(0, h.aimingTime - 10);
-                    }
+                    } else h.aimingTime = Math.max(0, h.aimingTime - 10);
                 } else {
-                    // Tir Soldat (Précision basée sur mouvement)
-                    if(dist < 120 && now - h.lastShoot > 2000) {
+                    if(dist < 100 && now - h.lastShoot > 2000) {
                         const b = new THREE.Mesh(new THREE.SphereGeometry(0.25), new THREE.MeshBasicMaterial({color: 0xff3300}));
                         b.position.copy(h.mesh.position).add(new THREE.Vector3(0, 1.2, 0));
-                        
-                        // Calcul chance de toucher
-                        // Vitesse max (1.5) -> 5% chance. Vitesse 0 -> 95% chance.
                         const hitChance = THREE.MathUtils.lerp(0.95, 0.05, droneSpeed / 1.5);
-                        
                         let targetPos = drone.position.clone();
                         if(Math.random() > hitChance) {
-                            // Dispersion si raté (on ajoute un offset aléatoire important)
                             targetPos.x += (Math.random() - 0.5) * 15;
                             targetPos.z += (Math.random() - 0.5) * 15;
                         }
-                        
                         const dir = targetPos.sub(b.position).normalize();
                         scene.add(b);
                         enemyBullets.push({mesh: b, dir: dir, life: 150, damage: 10});
@@ -384,30 +374,24 @@
                 }
             }
 
-            // Balles ennemies
             for(let i=enemyBullets.length-1; i>=0; i--) {
-                let eb = enemyBullets[i]; eb.mesh.position.add(eb.dir.clone().multiplyScalar(1.8)); eb.life--;
+                let eb = enemyBullets[i]; eb.mesh.position.add(eb.dir.clone().multiplyScalar(1.5)); eb.life--;
                 if(eb.mesh.position.distanceTo(drone.position) < 2.5) {
                     takeDamage(eb.damage); scene.remove(eb.mesh); enemyBullets.splice(i, 1);
                 } else if(eb.life <= 0) { scene.remove(eb.mesh); enemyBullets.splice(i, 1); }
             }
 
-            // Bombes Drone
             for(let i=bombs.length-1; i>=0; i--) {
-                let b = bombs[i]; b.vy -= 0.025; b.mesh.position.y += b.vy;
+                let b = bombs[i]; b.vy -= 0.02; b.mesh.position.y += b.vy;
                 if(b.mesh.position.y <= 0) {
                     const impactPos = new THREE.Vector3(b.mesh.position.x, 0, b.mesh.position.z);
-                    const mark = new THREE.Mesh(new THREE.CircleGeometry(10, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.8 }));
-                    mark.rotation.x = -Math.PI / 2; mark.position.set(impactPos.x, 0.1, impactPos.z); scene.add(mark);
                     for(let j=hostiles.length-1; j>=0; j--) {
-                        const hDist = hostiles[j].mesh.position.distanceTo(impactPos);
-                        const radius = hostiles[j].type === 'tank' ? 12 : 18;
-                        if(hDist < radius) {
+                        if(hostiles[j].mesh.position.distanceTo(impactPos) < (hostiles[j].type === 'tank' ? 10 : 15)) {
                             scene.remove(hostiles[j].mesh); hostiles.splice(j, 1);
-                            document.getElementById('targets-val').innerText = hostiles.length;
                         }
                     }
                     scene.remove(b.mesh); bombs.splice(i, 1);
+                    document.getElementById('targets-val').innerText = hostiles.length;
                     if(hostiles.length === 0) { state.active = false; document.getElementById('msg-overlay').style.display = 'flex'; }
                 }
             }
@@ -416,12 +400,12 @@
             const w = window.innerWidth, h = window.innerHeight;
             renderer.clear();
             renderer.setViewport(0, 0, w, h);
-            renderer.setScissorTest(false);
             renderer.render(scene, mainCamera);
             renderer.setScissorTest(true);
-            renderer.setScissor(w - 180, h - 180, 160, 160);
-            renderer.setViewport(w - 180, h - 180, 160, 160);
+            renderer.setScissor(w - 140, h - 140, 120, 120);
+            renderer.setViewport(w - 140, h - 140, 120, 120);
             renderer.render(scene, pipCamera);
+            renderer.setScissorTest(false);
         }
 
         window.onload = init;
